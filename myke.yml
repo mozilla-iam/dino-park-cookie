@@ -1,0 +1,21 @@
+project: dino-park-cookie
+env:
+  docker_registry: 320464205386.dkr.ecr.us-west-2.amazonaws.com
+  name: dino-park-cookie
+  rev: latest
+tasks:
+  compile-release:
+    cmd: cargo build --target x86_64-unknown-linux-musl --release
+  package-local:
+    cmd: |
+      $myke compile-release
+      $myke docker-local --rev={{ .rev }}
+  docker-local:
+    cmd:
+      docker build -t {{ .docker_registry }}/{{ .name }}:{{ .rev }} -f Dockerfile.local .
+  push-image:
+    cmd: docker push {{ .docker_registry }}/{{ .name }}:{{ .rev }}
+  deploy:
+    cmd: |
+      helm template -f k8s/values.yaml -f k8s/values/{{ .deploy_env | required }}.yaml \
+        --set docker_registry={{ .docker_registry }},rev={{ .rev }} k8s/ | kubectl apply -f -
